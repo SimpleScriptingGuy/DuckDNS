@@ -27,8 +27,9 @@ $MyWAN_IP = $null	; 	$Text_Response = $null	;	$webrequest = $null ; $Dig_IP = $n
 	# If the domain does not exist, the script will stop and Log and error!
 	try {
 		$Dig_IP = $(Resolve-DnsName $DuckDomainDNS_Check -TcpOnly -ErrorAction SilentlyContinue -ErrorVariable ProcessError).IPAddress
+		Sleep 5		# Giving some time for the DNS resolution to take place (5s).
 		If ($ProcessError) { Write-Host "`n`tError in DNS Request: $ErrorMessage`n`tProcessError = $ProcessError`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n" 
-							 Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "`n`tError in DNS Request: $ErrorMessage`n`n`t ProcessError = $ProcessError`n`n`t ErrorMessage = $ErrorMessage`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n"
+							 # Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "`n`tError in DNS Request: $ErrorMessage`n`n`t ProcessError = $ProcessError`n`n`t ErrorMessage = $ErrorMessage`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n"
 							 }
 	} catch {	$ErrorMessage = $_.Exception.Message
 				# Write-Host "Error in DNS Request: $ErrorMessage`n"
@@ -36,15 +37,14 @@ $MyWAN_IP = $null	; 	$Text_Response = $null	;	$webrequest = $null ; $Dig_IP = $n
 				# break
 			}
 		
-	Sleep 5		# Giving some time for the DNS resolution to take place (5s).
 
 	# Getting and parsing your current IP address visible from the Internet using checkip.dyndns.com website.
 	$ChkIpUrl = "http://checkip.dyndns.com"
 	$webrequest = Invoke-WebRequest $ChkIpUrl
 	$MyWAN_IP = $($webrequest.ParsedHtml.body.innerHtml).Split(":")[1].Trim()
 	$retries = $retries + 1
-	Write-Host "`n WebRequest: `n $webrequest`n `n`t Debugging: MyWAN_IP = $MyWAN_IP`n`t DuckDNS_IP = $Dig_IP `n`n`t Retries = $retries`n"
-	# Looping while I have empty/null variables.
+	Write-Host -NoNewLine "`n WebRequest: `n $webrequest`n `n`t " ; Write-Host -ForegroundColor Yellow -BackgroundColor Red "Debugging:" ; 	Write-Host -ForegroundColor White "`t MyWAN_IP = $MyWAN_IP`n`t DuckDNS_IP = $Dig_IP `n`n`t Retries = $retries`n"
+  # Looping while I have empty/null variables.
 } While ((! $MyWAN_IP) -or (! $Dig_IP))
 
 if("$MyWAN_IP" -eq "$Dig_IP") {
