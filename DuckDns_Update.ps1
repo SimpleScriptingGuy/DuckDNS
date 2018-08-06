@@ -26,12 +26,16 @@ $MyWAN_IP = $null	; 	$Text_Response = $null	;	$webrequest = $null ; $Dig_IP = $n
 
 	# If the domain does not exist, the script will stop and Log and error!
 	try {
-		$Dig_IP = $(Resolve-DnsName $DuckDomainDNS_Check -TcpOnly -ErrorAction Stop).IPAddress
+		$Dig_IP = $(Resolve-DnsName $DuckDomainDNS_Check -TcpOnly -ErrorAction SilentlyContinue -ErrorVariable ProcessError).IPAddress
+		If ($ProcessError) { Write-Host "`n`tError in DNS Request: $ErrorMessage`n`tProcessError = $ProcessError`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n" 
+							 Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "`n`tError in DNS Request: $ErrorMessage`n`n`t ProcessError = $ProcessError`n`n`t ErrorMessage = $ErrorMessage`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n"
+							 }
 	} catch {	$ErrorMessage = $_.Exception.Message
-				Write-Host "Error in DNS Request: $ErrorMessage`n"
+				# Write-Host "Error in DNS Request: $ErrorMessage`n"
 				Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "Error in DNS Request: $ErrorMessage`n`n`t DuckDNS_IP = $Dig_IP`n"
-				break
+				# break
 			}
+		
 	Sleep 5		# Giving some time for the DNS resolution to take place (5s).
 
 	# Getting and parsing your current IP address visible from the Internet using checkip.dyndns.com website.
