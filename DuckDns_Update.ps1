@@ -2,14 +2,12 @@
 # All the Write-Host entries are only used if anyone wants to debug/visualize while running on a interactive poweshell command prompt
 # Change anything according to your own standards an personal preferences
 
-
 # To be able to track what's happening overtime, I've created an Independant EventLog called DuckDNS and write entries as "DuckDNS Update" on it.
 # Before running the script, You need to create the Event Log on your system, to execute the following command below you'll need to run it on a Powershell with Administrative rights.
 # PS C:\> New-EventLog -LogName "DuckDNS" -Source "DuckDNS Update"
 
 # After that, you can create a Schedule Task to run this script every N times per day at your discretion.
 # It will only update(s) your valid Internet IP address at the DuckDNS server, when you actual IP address is DIFFERENT than the IP address that was last set for your DuckDNS Domain.
-
 
 # Change to Your domain(s) 
 $MyDomains = "domain1,domain2,domain3"
