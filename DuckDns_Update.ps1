@@ -18,65 +18,89 @@ $MyToken = "26f98765-abcd-4321-0027-5cb43ebfa400"
 $retries = 0	# reseting the counter. For me, sometimes it runs 2 times before getting a valid non-empty response from Resolve-DnsName.
 
 do {
-# Making sure these enviroment variables are sterile before assigning values.
-$MyWAN_IP = $null	; 	$Text_Response = $null	;	$webrequest = $null ; $Dig_IP = $null
+# Added by Damiani		# New-EventLog -LogName DuckDNS -Source "DuckDNS Update"
+# Cleaning variables
+$MyWAN_IP = $null		;	$Dig_IP = $null		;	$DuckDomainDNS_Check = $null 
+$Text_Response = $null	;	$WebRequest = $null ;	$ErrorMessage = $null	;	$ProcessError = $null
+$EventLog_Info = $null	;	$Log_Head = $null	;	$Log_Try = $null		;	$Log_Catch = $null
+$Log_Ident = $null		;	$Log_IPs = $null 	;	$HTTP_Response = $null	;	$DNS_URL_Update = $null
+$LogRespKO = $null		;	$LogRespOK = $null	;	$LogTxtURL = $null		
 
 	# Since in a single or multi domain registration they resolve to the same IP address, cheking only the first one.
 	$DuckDomainDNS_Check = $($MyDomains).Split(",")[0] + ".duckdns.org"
-
+	$Log_Head = "`t Checking this DuckDNS Domain Name: "
+	Write-Host -NoNewline $Log_Head; Write-Host -ForegroundColor Yellow $DuckDomainDNS_Check "`n"
+	# Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Information -EventID 12 -Message $($Log_Head + $DuckDomainDNS_Check)
+		
 	# If the domain does not exist, the script will stop and Log and error!
 	try {
 		$Dig_IP = $(Resolve-DnsName $DuckDomainDNS_Check -TcpOnly -ErrorAction SilentlyContinue -ErrorVariable ProcessError).IPAddress
-		Sleep 5		# Giving some time for the DNS resolution to take place (5s).
-		If ($ProcessError) { Write-Host "`n`tError in DNS Request: $ErrorMessage`n`tProcessError = $ProcessError`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n" 
-							 # Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "`n`tError in DNS Request: $ErrorMessage`n`n`t ProcessError = $ProcessError`n`n`t ErrorMessage = $ErrorMessage`n`n`t Retries = $retries`n`n`t DuckDNS_IP = $Dig_IP`n"
+			# Giving some time for the DNS resolution to take place (2s).
+			# Sleep 1
+		If ($ProcessError) { $Log_Try = "`n`n`t Error in DNS Request: $ErrorMessage `t ProcessError = $ProcessError`n`n`t Retrying...`n`n`t"
+							 Write-Host $Log_Try
+							 Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 919 -Message $($Log_Head + $DuckDomainDNS_Check + $Log_Try)
+							 $retries = $retries + 1
 							 }
 	} catch {	$ErrorMessage = $_.Exception.Message
-				# Write-Host "Error in DNS Request: $ErrorMessage`n"
-				Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "Error in DNS Request: $ErrorMessage`n`n`t DuckDNS_IP = $Dig_IP`n"
-				# break
+				$Log_Catch = "Error in DNS Request (Catch): ErrorMessage = $DuckDomainDNS_Check `n`t DuckDNS_IP = $Dig_IP`n`t Retries = $retries`n"
+				Write-Host -BackgroundColor Black -ForegroundColor Red $Log_Catch
+				Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 190 -Message $($Log_Head + $DuckDomainDNS_Check + $Log_Catch)
+				$retries = $retries + 1
+				break
 			}
 		
-
-	# Getting and parsing your current IP address visible from the Internet using checkip.dyndns.com website.
 	$ChkIpUrl = "http://checkip.dyndns.com"
-	$webrequest = Invoke-WebRequest $ChkIpUrl
-	$MyWAN_IP = $($webrequest.ParsedHtml.body.innerHtml).Split(":")[1].Trim()
+	$WebRequest = Invoke-WebRequest $ChkIpUrl
+		# Giving some time for the DNS resolution to take place (2s).
+		# Sleep 1
+	$MyWAN_IP=$($WebRequest.ParsedHtml.body.innerHtml).Split(":")[1].Trim()
+
+	# Debug info after 1 attempt
+	if ($retries -gt 1) {
+		Write-Host -BackgroundColor DarkRed -ForegroundColor Yellow "Debugging:" ; 	Write-Host -ForegroundColor White "`t MyWAN_IP = $MyWAN_IP`n`t DuckDNS_IP = $Dig_IP `n`n`t Retries = $retries`n" ; Write-Host -NoNewLine "`n WebRequest: `t $WebRequest`n`n`t"
+		Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Information -EventID 21 -Message "`n`t Debug Info `>1:`n`t MyWAN_IP = $MyWAN_IP`n`t DuckDNS_IP = $Dig_IP `n`t WebRequest: `t $WebRequest`n`t Retries = $retries`n"
+	}
+
 	$retries = $retries + 1
-	Write-Host -NoNewLine "`n WebRequest: `n $webrequest`n `n`t " ; Write-Host -ForegroundColor Yellow -BackgroundColor Red "Debugging:" ; 	Write-Host -ForegroundColor White "`t MyWAN_IP = $MyWAN_IP`n`t DuckDNS_IP = $Dig_IP `n`n`t Retries = $retries`n"
-  # Looping while I have empty/null variables.
 } While ((! $MyWAN_IP) -or (! $Dig_IP))
 
 if("$MyWAN_IP" -eq "$Dig_IP") {
-	Write-Host "IP's are equal, DOING NOTHING`n"
-	Write-Host "Current`t NET MyWAN_IP: $MyWAN_IP `n`t DuckDNS's IP: $Dig_IP`n`t Retries = $retries`n"
-	Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Information -EventID 13 -Message "DuckDNS IP Update SKIPPED, nothing to do `n`n`t DuckDNS_IP = $Dig_IP `n`t MyWAN_IP = $MyWAN_IP `n`t Retries = $retries`n"
-	Write-Host "Exit code: "
+	$Log_Ident = "IP's are Identical, NOTHING TO DO`!`n"
+	$Log_IPs = "`n`t Actual`t NET MyWAN_IP:`t $MyWAN_IP `n`t`t DuckDNS's IP:`t $Dig_IP`n`t`t Retries = $retries`n"
+	Write-Host -NoNewLine "`n`t " ; Write-Host -BackgroundColor Blue -ForegroundColor White $Log_Ident ; Write-Host $Log_IPs 
+	Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Information -EventID 13 -Message $($Log_Head + $DuckDomainDNS_Check + "`n`n`t "  + $Log_Ident + $Log_IPs)
+	Write-Host -NoNewLine -ForegroundColor Cyan "Exit code:" ; Write-Host -NoNewLine " "
 	return 13
 } else {
-
-	Write-Host "IP's are DIFFERENT, Updating`n"
-	Write-Host "Current WAN IP: $MyWAN_IP `t DuckDNS's IP: $Dig_IP `n`t retries = $retries`n"
-	$DNS_url_Update = "https://www.duckdns.org/update?domains=" + $MyDomains + "&token=" + $MyToken + "&ip=" + $MyWAN_IP
+	$Log_IPs = "`n`t Actual`t NET MyWAN_IP: $MyWAN_IP `n`t`t DuckDNS's IP: $Dig_IP`n`t`t Retries = $retries`n"
+	$Log_IPdiff = "IP's are DIFFERENT, Updating`!`n"
+	Write-Host -NoNewLine "`n`t" ; Write-Host -BackgroundColor Green -ForegroundColor DarkGreen $Log_IPdiff	; Write-Host $Log_IPs
+	$DNS_URL_Update = "https://www.duckdns.org/update?domains=" + $MyDomains + "&token=" + $MyToken + "&ip=" + $MyWAN_IP
 		
-	# Running a WebRequest to update the new values at DuckDNS's website.
-    $HTTP_Response = Invoke-WebRequest -Uri $DNS_url_Update
-    # Selecting the response value on the HTTP_Response.
+	# Run the call to Update the Domain IP Address in DuckDNS's website
+    $HTTP_Response = Invoke-WebRequest -Uri $DNS_URL_Update
+	# Giving some time for the DNS resolution to take place (2s).
+	Sleep 1
 	$Text_Response = $($HTTP_Response.StatusDescription)
 
-		# Write an EventLog entry according to the response received.
+		# If the response is anything other than 'OK' then log an error in the windows event log
 		if($Text_Response -ne "OK"){
-			# Bad Response Event
-			Write-Host "DuckDNS Update FAILED for some reason. Check your Domain or Token.`n`t Text_Response = $Text_Response`n`n`t DNS_url_Update $DNS_url_Update`n`nDebugging: MyWAN_IP = $MyWAN_IP`n`nWebRequest: `n$webrequest`n `nText_Response $Text_Response`n`t retries = $retries`n"
-			Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message "DuckDNS Update FAILED for some reason. Check your Domain or Token.`n`t Text_Response = $Text_Response`n`n`t DNS_url_Update $DNS_url_Update`n`nDebugging: MyWAN_IP = $MyWAN_IP`n`nWebRequest: `n$webrequest`n `nText_Response $Text_Response`n`t retries = $retries`n";
-			Write-Host "Exit code: "
+			$LogRespKO = "DuckDNS Update FAILED for some reason. Check your Domain and`/or Token."
+			$LogTxtURL = "`n`t Text_Response = $Text_Response`n`n`t DNS_URL_Update $DNS_URL_Update`n`n" + $Log_IPs
+			Write-Host -BackgroundColor Red -ForegroundColor Yellow $LogRespKO
+			Write-Host $LogTxtURL
+			Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Error -EventID 911 -Message $($LogRespKO + $LogTxtURL)
+			Write-Host -NoNewLine -ForegroundColor Cyan "Exit code:" ; Write-Host -NoNewLine " "
 			return 911
 		} else {
-			# OK Event
-			Write-Host "DuckDNS Updated SUCCESSFULY `n`t DuckDNS_IP = $Dig_IP `n`t MyWAN_IP = $MyWAN_IP `n`t retries = $retries`n"
-			Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Warning -EventID 1 -Message "DuckDNS Updated SUCCESSFULY `n`t DuckDNS_IP = $Dig_IP `n`t MyWAN_IP = $MyWAN_IP `n`t retries = $retries`n"
+		
+			$LogRespOK = "`n`t DuckDNS Updated SUCCESSFULY`!`n"
+			Write-Host -BackgroundColor Black -ForegroundColor Yellow $Log_IPdiff
+			Write-Host -BackgroundColor Red -ForegroundColor Yellow $LogRespOK ; Write-Host $Log_IPs
+			Write-EventLog -LogName "DuckDNS" -Source "DuckDNS Update" -EntryType Warning -EventID 1 -Message $($Log_IPdiff + $Log_IPs + $LogRespOK)
+			Write-Host -NoNewLine -ForegroundColor Cyan "Exit code:" ; Write-Host -NoNewLine " "
 			return 1
 		}
 
 	} # end else
-
