@@ -19,9 +19,9 @@ do {
 # Added by Damiani		# New-EventLog -LogName DuckDNS -Source "DuckDNS Update"
 # Cleaning variables
 $MyWAN_IP = $null		;	$Dig_IP = $null		;	$DuckDomainDNS_Check = $null 
-$Text_Response = $null	;	$WebRequest = $null ;	$ErrorMessage = $null	;	$ProcessError = $null
-$EventLog_Info = $null	;	$Log_Head = $null	;	$Log_Try = $null		;	$Log_Catch = $null
-$Log_Ident = $null		;	$Log_IPs = $null 	;	$HTTP_Response = $null	;	$DNS_URL_Update = $null
+$Text_Response = $null		;	$WebRequest = $null 	;	$ErrorMessage = $null		;	$ProcessError = $null
+$EventLog_Info = $null		;	$Log_Head = $null	;	$Log_Try = $null		;	$Log_Catch = $null
+$Log_Ident = $null		;	$Log_IPs = $null 	;	$HTTP_Response = $null		;	$DNS_URL_Update = $null
 $LogRespKO = $null		;	$LogRespOK = $null	;	$LogTxtURL = $null		
 
 	# Since in a single or multi domain registration they resolve to the same IP address, cheking only the first one.
@@ -48,11 +48,11 @@ $LogRespKO = $null		;	$LogRespOK = $null	;	$LogTxtURL = $null
 				break
 			}
 		
-	$ChkIpUrl = "http://checkip.dyndns.com"
-	$WebRequest = Invoke-WebRequest $ChkIpUrl
+	$ChkIpUrl = "https://ipv4.seeip.org/geoip?"
+	$WebRequest = Invoke-RestMethod $ChkIpUrl
 		# Giving some time for the DNS resolution to take place (2s).
 		# Sleep 1
-	$MyWAN_IP=$($WebRequest.ParsedHtml.body.innerHtml).Split(":")[1].Trim()
+	$MyWAN_IP=$($WebRequest.ip)
 
 	# Debug info after 1 attempt
 	if ($retries -gt 1) {
